@@ -10,6 +10,7 @@
       padding: 20px;
       background-color: #000;
       color: white;
+      position: relative;
     }
     h1 {
       text-align: center;
@@ -51,6 +52,28 @@
     .location {
       margin: 8px 0;
     }
+    .ticker {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #111;
+      color: #fff;
+      font-size: 1em;
+      padding: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .ticker-text {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll-left 30s linear infinite;
+    }
+    @keyframes scroll-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
   </style>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
@@ -58,6 +81,7 @@
   <div class="clock" id="clock"></div>
   <h1>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</h1>
   <div id="eventList">Loading...</div>
+  <div class="ticker"><div id="rssTicker" class="ticker-text">Loading call data...</div></div>
 
   <script>
     function updateClock() {
@@ -170,15 +194,27 @@
       });
     }
 
+    async function fetchRSS() {
+      try {
+        const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://warwick911.blogspot.com/feeds/posts/default');
+        const data = await response.json();
+        const items = data.items.slice(0, 5).map(item => item.title.replace(/~/g, ' ')).join('  •  ');
+        document.getElementById('rssTicker').textContent = items;
+      } catch (e) {
+        document.getElementById('rssTicker').textContent = 'Unable to load call data.';
+      }
+    }
+    setInterval(fetchRSS, 60000);
+    fetchRSS();
+
     google.charts.load('current', { packages: ['table'] });
     function fetchAndDraw() {
       const query = new google.visualization.Query(url);
       query.send(drawTable);
     }
-
     google.charts.setOnLoadCallback(() => {
       fetchAndDraw();
-      setInterval(fetchAndDraw, 60000); // auto-refresh every 60 seconds
+      setInterval(fetchAndDraw, 60000);
     });
   </script>
 </body>
