@@ -19,30 +19,23 @@
     .time { font-weight: bold; }
     .location { margin: 5px 0; }
   </style>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
   <h1>Upcoming Transport Schedule (Next 3 Days)</h1>
   <div id="eventList">Loading...</div>
 
   <script>
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkz9_LN1fVtTFY4WsdqrgKdnUzslJEFUNrkSOgj5DFkgVGTmEmqj3QzqLYxie26XAtWBLtG7K1NEBE/pub?output=csv';
-
-    function parseCSV(text) {
-      const rows = text.trim().split('\n').map(row => row.split(','));
-      const headers = rows[0];
-      return rows.slice(1).map(row => {
-        const entry = {};
-        headers.forEach((h, i) => entry[h] = row[i]);
-        return entry;
-      });
-    }
+    const sheetID = '1V1ZVnX4G1YQeU7Dit4gkONEI8VuRanVQNjWKe2qqnnI';
+    const query = encodeURIComponent('SELECT *');
+    const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${query}`;
 
     function parseDateTime(dateTimeString) {
-      const parts = dateTimeString.split(/\s+/); // split into [date, time]
+      const parts = dateTimeString.split(/\s+/); // split into [date, time, AM/PM]
       if (parts.length < 2) return null;
       const [month, day, year] = parts[0].split('/');
-      const time = parts[1];
-      return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}`);
+      const time = parts.slice(1).join(' ');
+      return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${time}`);
     }
 
     function isWithinNextThreeDays(dateString) {
@@ -58,52 +51,64 @@
       return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
-    fetch(csvUrl)
-      .then(response => response.text())
-      .then(data => {
-        const records = parseCSV(data);
-        const eventList = document.getElementById('eventList');
-        eventList.innerHTML = '';
+    function drawTable(response) {
+      const data = response.getDataTable();
+      const eventList = document.getElementById('eventList');
+      eventList.innerHTML = '';
 
-        const upcomingEvents = records.filter(e => isWithinNextThreeDays(e['Date and Time of PICK UP']));
+      const headers = [];
+      for (let i = 0; i < data.getNumberOfColumns(); i++) {
+        headers.push(data.getColumnLabel(i));
+      }
 
-        if (upcomingEvents.length === 0) {
-          eventList.textContent = 'No transports scheduled for the next 3 days.';
-          return;
+      const events = [];
+      for (let i = 0; i < data.getNumberOfRows(); i++) {
+        const row = {};
+        headers.forEach((h, j) => row[h] = data.getValue(i, j));
+        if (isWithinNextThreeDays(row['Date and Time of PICK UP'])) {
+          row.parsedDate = parseDateTime(row['Date and Time of PICK UP']);
+          events.push(row);
         }
+      }
 
-        const eventsByDate = {};
-        upcomingEvents.forEach(e => {
-          const eventDate = parseDateTime(e['Date and Time of PICK UP']);
-          const dateKey = eventDate.toDateString();
-          if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
-          eventsByDate[dateKey].push({ ...e, parsedDate: eventDate });
-        });
+      if (events.length === 0) {
+        eventList.textContent = 'No transports scheduled for the next 3 days.';
+        return;
+      }
 
-        Object.keys(eventsByDate).sort().forEach(dateKey => {
-          const heading = document.createElement('div');
-          heading.className = 'date';
-          heading.textContent = formatDate(new Date(dateKey));
-          eventList.appendChild(heading);
-
-          eventsByDate[dateKey].forEach(e => {
-            const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const div = document.createElement('div');
-            div.className = 'event';
-            div.innerHTML = `
-              <div class="time">${time}</div>
-              <div class="location"><strong>Pick-up:</strong> ${e['Pick up location'] || 'N/A'}</div>
-              <div class="location"><strong>Drop-off:</strong> ${e['Drop off location'] || 'N/A'}</div>
-              ${e['Other notes'] ? `<div class="location"><strong>Notes:</strong> ${e['Other notes']}</div>` : ''}
-            `;
-            eventList.appendChild(div);
-          });
-        });
-      })
-      .catch(error => {
-        console.error('Error loading CSV:', error);
-        document.getElementById('eventList').textContent = 'Failed to load data.';
+      const eventsByDate = {};
+      events.forEach(e => {
+        const dateKey = e.parsedDate.toDateString();
+        if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+        eventsByDate[dateKey].push(e);
       });
+
+      Object.keys(eventsByDate).sort().forEach(dateKey => {
+        const heading = document.createElement('div');
+        heading.className = 'date';
+        heading.textContent = formatDate(new Date(dateKey));
+        eventList.appendChild(heading);
+
+        eventsByDate[dateKey].forEach(e => {
+          const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.innerHTML = `
+            <div class="time">${time}</div>
+            <div class="location"><strong>Pick-up:</strong> ${e['Pick up location'] || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${e['Drop off location'] || 'N/A'}</div>
+            ${e['Other notes'] ? `<div class="location"><strong>Notes:</strong> ${e['Other notes']}</div>` : ''}
+          `;
+          eventList.appendChild(div);
+        });
+      });
+    }
+
+    google.charts.load('current', { packages: ['table'] });
+    google.charts.setOnLoadCallback(() => {
+      const query = new google.visualization.Query(url);
+      query.send(drawTable);
+    });
   </script>
 </body>
 </html>
