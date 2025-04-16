@@ -50,8 +50,8 @@
       const now = new Date();
       const date = parseDateTime(dateString);
       if (!date) return false;
-      const diff = date - now;
-      return diff >= 0 && diff <= 3 * 86400000;
+      const dayDiff = (date - now) / 86400000;
+      return dayDiff >= 0 && dayDiff < 3;
     }
 
     function formatDate(date) {
@@ -65,13 +65,13 @@
 
       const events = [];
       for (let i = 0; i < data.getNumberOfRows(); i++) {
-        const datetime = data.getFormattedValue(i, 2); // Date and Time of PICK UP:
-        const pickup = data.getFormattedValue(i, 4);   // Pick Up:
-        const dropoff = data.getFormattedValue(i, 7);  // Drop Off:
-        const notes = data.getFormattedValue(i, 13);   // Special Equipment or Notes:
+        const datetime = data.getFormattedValue(i, 2);
+        const pickup = data.getFormattedValue(i, 4);
+        const dropoff = data.getFormattedValue(i, 7);
+        const notes = data.getFormattedValue(i, 13);
 
-        if (!isWithinNextThreeDays(datetime)) continue;
         const parsedDate = parseDateTime(datetime);
+        if (!parsedDate || !isWithinNextThreeDays(datetime)) continue;
         events.push({ parsedDate, pickup, dropoff, notes });
       }
 
@@ -80,6 +80,8 @@
         return;
       }
 
+      events.sort((a, b) => a.parsedDate - b.parsedDate);
+
       const grouped = {};
       events.forEach(e => {
         const key = e.parsedDate.toDateString();
@@ -87,7 +89,7 @@
         grouped[key].push(e);
       });
 
-      Object.keys(grouped).sort().forEach(key => {
+      Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b)).forEach(key => {
         const header = document.createElement('div');
         header.className = 'date';
         header.textContent = formatDate(new Date(key));
@@ -109,9 +111,14 @@
     }
 
     google.charts.load('current', { packages: ['table'] });
-    google.charts.setOnLoadCallback(() => {
+    function fetchAndDraw() {
       const query = new google.visualization.Query(url);
       query.send(drawTable);
+    }
+
+    google.charts.setOnLoadCallback(() => {
+      fetchAndDraw();
+      setInterval(fetchAndDraw, 60000); // auto-refresh every 60 seconds
     });
   </script>
 </body>
