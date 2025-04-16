@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Today's Transports</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+    h1 { text-align: center; }
+    .event {
+      background: #fff;
+      margin: 10px auto;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 600px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .time { font-weight: bold; }
+    .location { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h1>Today's Transport Schedule</h1>
+  <div id="eventList">Loading...</div>
+
+  <script>
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkz9_LN1fVtTFY4WsdqrgKdnUzslJEFUNrkSOgj5DFkgVGTmEmqj3QzqLYxie26XAtWBLtG7K1NEBE/pub?output=csv';
+
+    function parseCSV(text) {
+      const rows = text.trim().split('\n').map(row => row.split(','));
+      const headers = rows[0];
+      return rows.slice(1).map(row => {
+        const entry = {};
+        headers.forEach((h, i) => entry[h] = row[i]);
+        return entry;
+      });
+    }
+
+    function isToday(dateString) {
+      const today = new Date();
+      const date = new Date(dateString);
+      return date.getFullYear() === today.getFullYear() &&
+             date.getMonth() === today.getMonth() &&
+             date.getDate() === today.getDate();
+    }
+
+    fetch(csvUrl)
+      .then(response => response.text())
+      .then(data => {
+        const records = parseCSV(data);
+        const eventList = document.getElementById('eventList');
+        eventList.innerHTML = '';
+
+        const todaysEvents = records.filter(e => isToday(e['Date and Time of PICK UP']));
+
+        if (todaysEvents.length === 0) {
+          eventList.textContent = 'No transports scheduled for today.';
+          return;
+        }
+
+        todaysEvents.forEach(e => {
+          const time = new Date(e['Date and Time of PICK UP']).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.innerHTML = `
+            <div class="time">${time}</div>
+            <div class="location"><strong>Pick-up:</strong> ${e['Pick up location'] || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${e['Drop off location'] || 'N/A'}</div>
+            ${e['Other notes'] ? `<div class="location"><strong>Notes:</strong> ${e['Other notes']}</div>` : ''}
+          `;
+          eventList.appendChild(div);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading CSV:', error);
+        document.getElementById('eventList').textContent = 'Failed to load data.';
+      });
+  </script>
+</body>
+</html>
