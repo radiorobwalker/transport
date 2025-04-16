@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
+      padding: 10px;
       background-color: #000;
       color: white;
       position: relative;
@@ -25,21 +25,29 @@
       font-weight: bold;
       color: white;
     }
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      max-width: 1600px;
+      margin: auto;
+    }
     .event {
       background: #fff;
-      margin: 10px auto;
       padding: 20px;
       border-radius: 10px;
-      max-width: 800px;
-      font-size: 1em;
+      width: 45%;
+      font-size: 1.2em;
       box-shadow: 0 0 10px rgba(255,255,255,0.1);
       color: black;
     }
     .date {
       font-size: 1.3em;
-      margin-top: 30px;
+      margin: 30px 0 10px;
       font-weight: bold;
       color: white;
+      text-align: center;
     }
     .time {
       font-weight: bold;
@@ -83,8 +91,9 @@
 </head>
 <body>
   <div class="clock" id="clock"></div>
-  <h1>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</h1>
-  <div id="eventList">Loading...</div>
+  <h1 id="pageTitle"></h1>
+  <div class="date" id="noData"></div>
+  <div id="eventList" class="grid">Loading...</div>
   <div class="ticker"><div id="rssTicker" class="ticker-text">Loading call data...</div></div>
 
   <script>
@@ -94,6 +103,8 @@
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
       document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+      const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+      document.getElementById('pageTitle').textContent = `Warwick EMS Transport Schedule – ${dateStr}`;
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -118,26 +129,18 @@
       return isNaN(date.getTime()) ? null : date;
     }
 
-    function isWithinNextThreeDays(dateString) {
+    function isToday(dateString) {
       const now = new Date();
       const date = parseDateTime(dateString);
-      if (!date) return false;
-      const dayDiff = (date - now) / 86400000;
-      return dayDiff >= 0 && dayDiff < 3;
-    }
-
-    function formatDate(date) {
-      const today = new Date();
-      if (date.toDateString() === today.toDateString()) {
-        return "Today";
-      }
-      return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+      return date && date.toDateString() === now.toDateString();
     }
 
     function drawTable(response) {
       const data = response.getDataTable();
       const eventList = document.getElementById('eventList');
+      const noData = document.getElementById('noData');
       eventList.innerHTML = '';
+      noData.innerHTML = '';
 
       const events = [];
       for (let i = 0; i < data.getNumberOfRows(); i++) {
@@ -152,50 +155,34 @@
         const notes = data.getFormattedValue(i, 13);
 
         const parsedDate = parseDateTime(datetime);
-        if (!parsedDate || !isWithinNextThreeDays(datetime)) continue;
+        if (!parsedDate || !isToday(datetime)) continue;
 
         events.push({ parsedDate, transportType, pickup, pickupOther, pickupRoom, dropoff, dropoffOther, dropoffRoom, notes });
       }
 
       if (events.length === 0) {
-        eventList.textContent = 'No transports scheduled for the next 3 days.';
+        noData.textContent = 'There are no transports scheduled at this time.';
         return;
       }
 
       events.sort((a, b) => a.parsedDate - b.parsedDate);
 
-      const grouped = {};
-      events.forEach(e => {
-        const key = e.parsedDate.toDateString();
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(e);
-      });
+      events.slice(0, 8).forEach(e => {
+        const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
+        if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
+        let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
+        if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
 
-      Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b)).forEach(key => {
-        const header = document.createElement('div');
-        header.className = 'date';
-        header.textContent = formatDate(new Date(key));
-        eventList.appendChild(header);
-
-        grouped[key].forEach(e => {
-          const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
-          if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
-
-          let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
-          if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
-
-          const div = document.createElement('div');
-          div.className = 'event';
-          div.innerHTML = `
-            <div class="time">${time}<span class="transport-type"> ${e.transportType || ''}</span></div>
-            <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
-            ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
-          `;
-          eventList.appendChild(div);
-        });
+        const div = document.createElement('div');
+        div.className = 'event';
+        div.innerHTML = `
+          <div class="time">${time}<span class="transport-type"> ${e.transportType || ''}</span></div>
+          <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
+          <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
+          ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
+        `;
+        eventList.appendChild(div);
       });
     }
 
