@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upcoming Transports</title>
+  <title>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
-    h1 { text-align: center; }
-    .logo {
-      display: block;
-      margin: 0 auto 20px auto;
-      max-width: 150px;
+    h1 { text-align: center; margin-right: 120px; }
+    .clock {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 1.5em;
+      font-weight: bold;
     }
     .event {
       background: #fff;
@@ -28,11 +30,21 @@
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
-  <img class="logo" src="https://scontent.fphl2-4.fna.fbcdn.net/v/t39.30808-6/347237084_613927987278302_8082369491286043059_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=So9fZGlkU-UAX8QQ2a8&_nc_ht=scontent.fphl2-4.fna&oh=00_AfB8Nu_dPa04avlOYimodgKyGoLMcrXz6SOyPbWb53HMnw&oe=66622A9B" alt="Warwick Community Ambulance Logo">
-  <h1>Upcoming Transport Schedule (Next 3 Days)</h1>
+  <div class="clock" id="clock"></div>
+  <h1>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</h1>
   <div id="eventList">Loading...</div>
 
   <script>
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
     const sheetID = '1V1ZVnX4G1YQeU7Dit4gkONEI8VuRanVQNjWKe2qqnnI';
     const query = encodeURIComponent('SELECT *');
     const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${query}`;
@@ -62,6 +74,10 @@
     }
 
     function formatDate(date) {
+      const today = new Date();
+      if (date.toDateString() === today.toDateString()) {
+        return "Today";
+      }
       return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
