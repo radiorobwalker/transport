@@ -31,7 +31,8 @@
     const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${query}`;
 
     function parseDateTime(dateTimeString) {
-      const parts = dateTimeString.split(/\s+/); // split into [date, time, AM/PM]
+      if (!dateTimeString) return null;
+      const parts = dateTimeString.split(/\s+/);
       if (parts.length < 2) return null;
       const [month, day, year] = parts[0].split('/');
       const time = parts.slice(1).join(' ');
@@ -42,9 +43,8 @@
       const now = new Date();
       const date = parseDateTime(dateString);
       if (!date || isNaN(date)) return false;
-      const timeDiff = date - now;
-      const dayInMs = 86400000;
-      return timeDiff >= 0 && timeDiff < (3 * dayInMs);
+      const diff = date - now;
+      return diff >= 0 && diff <= 3 * 86400000;
     }
 
     function formatDate(date) {
@@ -56,19 +56,17 @@
       const eventList = document.getElementById('eventList');
       eventList.innerHTML = '';
 
-      const headers = [];
-      for (let i = 0; i < data.getNumberOfColumns(); i++) {
-        headers.push(data.getColumnLabel(i));
-      }
-
       const events = [];
       for (let i = 0; i < data.getNumberOfRows(); i++) {
-        const row = {};
-        headers.forEach((h, j) => row[h] = data.getValue(i, j));
-        if (isWithinNextThreeDays(row['Date and Time of PICK UP'])) {
-          row.parsedDate = parseDateTime(row['Date and Time of PICK UP']);
-          events.push(row);
-        }
+        const datetime = data.getFormattedValue(i, 2); // Column C: Date and Time of PICK UP:
+        const pickup = data.getFormattedValue(i, 4);   // Column E: Pick Up:
+        const dropoff = data.getFormattedValue(i, 7);  // Column H: Drop Off:
+        const notes = data.getFormattedValue(i, 11);   // Column L: Special Equipment or Notes:
+
+        if (!isWithinNextThreeDays(datetime)) continue;
+        const parsedDate = parseDateTime(datetime);
+
+        events.push({ parsedDate, pickup, dropoff, notes });
       }
 
       if (events.length === 0) {
@@ -76,28 +74,28 @@
         return;
       }
 
-      const eventsByDate = {};
+      const grouped = {};
       events.forEach(e => {
-        const dateKey = e.parsedDate.toDateString();
-        if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
-        eventsByDate[dateKey].push(e);
+        const key = e.parsedDate.toDateString();
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(e);
       });
 
-      Object.keys(eventsByDate).sort().forEach(dateKey => {
-        const heading = document.createElement('div');
-        heading.className = 'date';
-        heading.textContent = formatDate(new Date(dateKey));
-        eventList.appendChild(heading);
+      Object.keys(grouped).sort().forEach(key => {
+        const header = document.createElement('div');
+        header.className = 'date';
+        header.textContent = formatDate(new Date(key));
+        eventList.appendChild(header);
 
-        eventsByDate[dateKey].forEach(e => {
+        grouped[key].forEach(e => {
           const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const div = document.createElement('div');
           div.className = 'event';
           div.innerHTML = `
             <div class="time">${time}</div>
-            <div class="location"><strong>Pick-up:</strong> ${e['Pick up location'] || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${e['Drop off location'] || 'N/A'}</div>
-            ${e['Other notes'] ? `<div class="location"><strong>Notes:</strong> ${e['Other notes']}</div>` : ''}
+            <div class="location"><strong>Pick-up:</strong> ${e.pickup || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${e.dropoff || 'N/A'}</div>
+            ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
           `;
           eventList.appendChild(div);
         });
