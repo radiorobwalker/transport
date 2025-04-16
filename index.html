@@ -31,18 +31,30 @@
     const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${query}`;
 
     function parseDateTime(dateTimeString) {
-      if (!dateTimeString) return null;
+      if (!dateTimeString || typeof dateTimeString !== 'string') return null;
       const parts = dateTimeString.split(/\s+/);
       if (parts.length < 2) return null;
-      const [month, day, year] = parts[0].split('/');
+
+      const dateParts = parts[0].split('/');
+      if (dateParts.length !== 3) return null;
+
+      let [month, day, year] = dateParts;
+      if (!month || !day || !year) return null;
+
+      month = String(month).padStart(2, '0');
+      day = String(day).padStart(2, '0');
       const time = parts.slice(1).join(' ');
-      return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${time}`);
+
+      const fullString = `${year}-${month}-${day} ${time}`;
+      const date = new Date(fullString);
+
+      return isNaN(date.getTime()) ? null : date;
     }
 
     function isWithinNextThreeDays(dateString) {
       const now = new Date();
       const date = parseDateTime(dateString);
-      if (!date || isNaN(date)) return false;
+      if (!date) return false;
       const diff = date - now;
       return diff >= 0 && diff <= 3 * 86400000;
     }
@@ -56,50 +68,20 @@
       const eventList = document.getElementById('eventList');
       eventList.innerHTML = '';
 
-      const events = [];
+      console.log('Column Headers:');
+      for (let i = 0; i < data.getNumberOfColumns(); i++) {
+        console.log(i, ':', data.getColumnLabel(i));
+      }
+
       for (let i = 0; i < data.getNumberOfRows(); i++) {
-        const datetime = data.getFormattedValue(i, 2); // Column C: Date and Time of PICK UP:
-        const pickup = data.getFormattedValue(i, 4);   // Column E: Pick Up:
-        const dropoff = data.getFormattedValue(i, 7);  // Column H: Drop Off:
-        const notes = data.getFormattedValue(i, 11);   // Column L: Special Equipment or Notes:
-
-        if (!isWithinNextThreeDays(datetime)) continue;
-        const parsedDate = parseDateTime(datetime);
-
-        events.push({ parsedDate, pickup, dropoff, notes });
+        const rowValues = [];
+        for (let j = 0; j < data.getNumberOfColumns(); j++) {
+          rowValues.push(data.getFormattedValue(i, j));
+        }
+        console.log(`Row ${i}:`, rowValues);
       }
 
-      if (events.length === 0) {
-        eventList.textContent = 'No transports scheduled for the next 3 days.';
-        return;
-      }
-
-      const grouped = {};
-      events.forEach(e => {
-        const key = e.parsedDate.toDateString();
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(e);
-      });
-
-      Object.keys(grouped).sort().forEach(key => {
-        const header = document.createElement('div');
-        header.className = 'date';
-        header.textContent = formatDate(new Date(key));
-        eventList.appendChild(header);
-
-        grouped[key].forEach(e => {
-          const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const div = document.createElement('div');
-          div.className = 'event';
-          div.innerHTML = `
-            <div class="time">${time}</div>
-            <div class="location"><strong>Pick-up:</strong> ${e.pickup || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${e.dropoff || 'N/A'}</div>
-            ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
-          `;
-          eventList.appendChild(div);
-        });
-      });
+      eventList.textContent = 'Check browser console for column debugging output.';
     }
 
     google.charts.load('current', { packages: ['table'] });
