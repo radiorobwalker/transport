@@ -7,6 +7,11 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
     h1 { text-align: center; }
+    .logo {
+      display: block;
+      margin: 0 auto 20px auto;
+      max-width: 150px;
+    }
     .event {
       background: #fff;
       margin: 10px auto;
@@ -17,11 +22,13 @@
     }
     .date { font-size: 1.2em; margin-top: 20px; }
     .time { font-weight: bold; }
+    .transport-type { color: red; font-weight: bold; margin-left: 10px; }
     .location { margin: 5px 0; }
   </style>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
+  <img class="logo" src="https://scontent.fphl2-4.fna.fbcdn.net/v/t39.30808-6/347237084_613927987278302_8082369491286043059_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=So9fZGlkU-UAX8QQ2a8&_nc_ht=scontent.fphl2-4.fna&oh=00_AfB8Nu_dPa04avlOYimodgKyGoLMcrXz6SOyPbWb53HMnw&oe=66622A9B" alt="Warwick Community Ambulance Logo">
   <h1>Upcoming Transport Schedule (Next 3 Days)</h1>
   <div id="eventList">Loading...</div>
 
@@ -112,7 +119,7 @@
           const div = document.createElement('div');
           div.className = 'event';
           div.innerHTML = `
-            <div class="time">${time} ${e.transportType || ''}</div>
+            <div class="time">${time}<span class="transport-type"> ${e.transportType || ''}</span></div>
             <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
             <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
             ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
