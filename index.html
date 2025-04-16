@@ -37,16 +37,24 @@
       });
     }
 
+    function parseDateTime(dateTimeString) {
+      const parts = dateTimeString.split(/\s+/); // split into [date, time]
+      if (parts.length < 2) return null;
+      const [month, day, year] = parts[0].split('/');
+      const time = parts[1];
+      return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}`);
+    }
+
     function isWithinNextThreeDays(dateString) {
       const now = new Date();
-      const date = new Date(dateString);
+      const date = parseDateTime(dateString);
+      if (!date || isNaN(date)) return false;
       const timeDiff = date - now;
       const dayInMs = 86400000;
       return timeDiff >= 0 && timeDiff < (3 * dayInMs);
     }
 
-    function formatDate(dateStr) {
-      const date = new Date(dateStr);
+    function formatDate(date) {
       return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
@@ -66,19 +74,20 @@
 
         const eventsByDate = {};
         upcomingEvents.forEach(e => {
-          const dateKey = new Date(e['Date and Time of PICK UP']).toDateString();
+          const eventDate = parseDateTime(e['Date and Time of PICK UP']);
+          const dateKey = eventDate.toDateString();
           if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
-          eventsByDate[dateKey].push(e);
+          eventsByDate[dateKey].push({ ...e, parsedDate: eventDate });
         });
 
         Object.keys(eventsByDate).sort().forEach(dateKey => {
           const heading = document.createElement('div');
           heading.className = 'date';
-          heading.textContent = formatDate(dateKey);
+          heading.textContent = formatDate(new Date(dateKey));
           eventList.appendChild(heading);
 
           eventsByDate[dateKey].forEach(e => {
-            const time = new Date(e['Date and Time of PICK UP']).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const div = document.createElement('div');
             div.className = 'event';
             div.innerHTML = `
