@@ -65,14 +65,17 @@
 
       const events = [];
       for (let i = 0; i < data.getNumberOfRows(); i++) {
+        const transportType = data.getFormattedValue(i, 0);
         const datetime = data.getFormattedValue(i, 2);
         const pickup = data.getFormattedValue(i, 4);
+        const pickupOther = data.getFormattedValue(i, 5);
         const dropoff = data.getFormattedValue(i, 7);
+        const dropoffOther = data.getFormattedValue(i, 8);
         const notes = data.getFormattedValue(i, 13);
 
         const parsedDate = parseDateTime(datetime);
         if (!parsedDate || !isWithinNextThreeDays(datetime)) continue;
-        events.push({ parsedDate, pickup, dropoff, notes });
+        events.push({ parsedDate, transportType, pickup, pickupOther, dropoff, dropoffOther, notes });
       }
 
       if (events.length === 0) {
@@ -97,12 +100,14 @@
 
         grouped[key].forEach(e => {
           const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const pickupInfo = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
+          const dropoffInfo = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
           const div = document.createElement('div');
           div.className = 'event';
           div.innerHTML = `
-            <div class="time">${time}</div>
-            <div class="location"><strong>Pick-up:</strong> ${e.pickup || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${e.dropoff || 'N/A'}</div>
+            <div class="time">${time} ${e.transportType || ''}</div>
+            <div class="location"><strong>Pick-up:</strong> ${pickupInfo || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${dropoffInfo || 'N/A'}</div>
             ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
           `;
           eventList.appendChild(div);
