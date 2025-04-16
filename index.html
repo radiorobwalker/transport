@@ -69,13 +69,15 @@
         const datetime = data.getFormattedValue(i, 2);
         const pickup = data.getFormattedValue(i, 4);
         const pickupOther = data.getFormattedValue(i, 5);
+        const pickupRoom = data.getFormattedValue(i, 6);
         const dropoff = data.getFormattedValue(i, 7);
         const dropoffOther = data.getFormattedValue(i, 8);
+        const dropoffRoom = data.getFormattedValue(i, 9);
         const notes = data.getFormattedValue(i, 13);
 
         const parsedDate = parseDateTime(datetime);
         if (!parsedDate || !isWithinNextThreeDays(datetime)) continue;
-        events.push({ parsedDate, transportType, pickup, pickupOther, dropoff, dropoffOther, notes });
+        events.push({ parsedDate, transportType, pickup, pickupOther, pickupRoom, dropoff, dropoffOther, dropoffRoom, notes });
       }
 
       if (events.length === 0) {
@@ -100,14 +102,19 @@
 
         grouped[key].forEach(e => {
           const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const pickupInfo = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
-          const dropoffInfo = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
+
+          let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
+          if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
+
+          let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
+          if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
+
           const div = document.createElement('div');
           div.className = 'event';
           div.innerHTML = `
             <div class="time">${time} ${e.transportType || ''}</div>
-            <div class="location"><strong>Pick-up:</strong> ${pickupInfo || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${dropoffInfo || 'N/A'}</div>
+            <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
             ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
           `;
           eventList.appendChild(div);
@@ -128,4 +135,3 @@
   </script>
 </body>
 </html>
-
