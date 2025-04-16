@@ -59,7 +59,7 @@
       width: 100%;
       background: #111;
       color: #fff;
-      font-size: 1em;
+      font-size: 1.3em;
       padding: 10px;
       white-space: nowrap;
       overflow: hidden;
@@ -68,11 +68,15 @@
     .ticker-text {
       display: inline-block;
       padding-left: 100%;
-      animation: scroll-left 30s linear infinite;
+      animation: scroll-left 120s linear infinite;
     }
     @keyframes scroll-left {
       0% { transform: translateX(0); }
       100% { transform: translateX(-100%); }
+    }
+    .rss-title {
+      color: yellow;
+      font-weight: bold;
     }
   </style>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -130,76 +134,16 @@
       return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
-    function drawTable(response) {
-      const data = response.getDataTable();
-      const eventList = document.getElementById('eventList');
-      eventList.innerHTML = '';
-
-      const events = [];
-      for (let i = 0; i < data.getNumberOfRows(); i++) {
-        const transportType = data.getFormattedValue(i, 0);
-        const datetime = data.getFormattedValue(i, 2);
-        const pickup = data.getFormattedValue(i, 4);
-        const pickupOther = data.getFormattedValue(i, 5);
-        const pickupRoom = data.getFormattedValue(i, 6);
-        const dropoff = data.getFormattedValue(i, 7);
-        const dropoffOther = data.getFormattedValue(i, 8);
-        const dropoffRoom = data.getFormattedValue(i, 9);
-        const notes = data.getFormattedValue(i, 13);
-
-        const parsedDate = parseDateTime(datetime);
-        if (!parsedDate || !isWithinNextThreeDays(datetime)) continue;
-        events.push({ parsedDate, transportType, pickup, pickupOther, pickupRoom, dropoff, dropoffOther, dropoffRoom, notes });
-      }
-
-      if (events.length === 0) {
-        eventList.textContent = 'No transports scheduled for the next 3 days.';
-        return;
-      }
-
-      events.sort((a, b) => a.parsedDate - b.parsedDate);
-
-      const grouped = {};
-      events.forEach(e => {
-        const key = e.parsedDate.toDateString();
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(e);
-      });
-
-      Object.keys(grouped).sort((a, b) => new Date(a) - new Date(b)).forEach(key => {
-        const header = document.createElement('div');
-        header.className = 'date';
-        header.textContent = formatDate(new Date(key));
-        eventList.appendChild(header);
-
-        grouped[key].forEach(e => {
-          const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
-          if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
-
-          let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
-          if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
-
-          const div = document.createElement('div');
-          div.className = 'event';
-          div.innerHTML = `
-            <div class="time">${time}<span class="transport-type"> ${e.transportType || ''}</span></div>
-            <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
-            <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
-            ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
-          `;
-          eventList.appendChild(div);
-        });
-      });
-    }
-
     async function fetchRSS() {
       try {
         const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://warwick911.blogspot.com/feeds/posts/default');
         const data = await response.json();
-        const items = data.items.slice(0, 5).map(item => item.title.replace(/~/g, ' ')).join('  •  ');
-        document.getElementById('rssTicker').textContent = items;
+        const items = data.items.slice(0, 5).map(item => {
+          const title = `<span class='rss-title'>${item.title.replace(/~/g, ' ')}</span>`;
+          const desc = item.description.replace(/~/g, ' ');
+          return `${title}: ${desc}`;
+        }).join('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+        document.getElementById('rssTicker').innerHTML = items;
       } catch (e) {
         document.getElementById('rssTicker').textContent = 'Unable to load call data.';
       }
