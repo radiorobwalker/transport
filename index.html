@@ -10,14 +10,14 @@
       padding: 10px;
       background-color: #000;
       color: white;
-      position: relative;
-      overflow-x: hidden;
+      margin: 0;
     }
+
     h1 {
       text-align: center;
-      margin-right: 120px;
       font-size: 1.8em;
     }
+
     .clock {
       position: absolute;
       top: 20px;
@@ -26,23 +26,34 @@
       font-weight: bold;
       color: white;
     }
+
     .grid {
-      display: flex;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      gap: 40px;
-      padding: 20px 0;
+      display: block;
+      margin-top: 20px;
     }
+
     .event {
-      display: inline-flex;
-      flex-direction: column;
       font-size: 1.1em;
+      margin-bottom: 12px;
       white-space: nowrap;
-      color: white;
     }
-    .event div {
-      margin-bottom: 4px;
+
+    .time {
+      font-weight: bold;
+      margin-right: 10px;
     }
+
+    .transport-type {
+      color: red;
+      font-weight: bold;
+      margin-left: 6px;
+    }
+
+    .location,
+    .note {
+      margin-left: 20px;
+    }
+
     .date {
       font-size: 1.3em;
       margin: 30px 0 10px;
@@ -50,17 +61,7 @@
       color: white;
       text-align: center;
     }
-    .time {
-      font-weight: bold;
-    }
-    .transport-type {
-      color: red;
-      font-weight: bold;
-      margin-left: 10px;
-    }
-    .location {
-      display: inline;
-    }
+
     .ticker {
       position: fixed;
       bottom: 0;
@@ -74,15 +75,18 @@
       overflow: hidden;
       box-sizing: border-box;
     }
+
     .ticker-text {
       display: inline-block;
       padding-left: 100%;
       animation: scroll-left 120s linear infinite;
     }
+
     @keyframes scroll-left {
       0% { transform: translateX(0); }
       100% { transform: translateX(-100%); }
     }
+
     .rss-title {
       color: yellow;
       font-weight: bold;
@@ -168,7 +172,7 @@
 
       events.sort((a, b) => a.parsedDate - b.parsedDate);
 
-      events.slice(0, 8).forEach(e => {
+      events.slice(0, 10).forEach(e => {
         const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
         if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
@@ -178,10 +182,11 @@
         const div = document.createElement('div');
         div.className = 'event';
         div.innerHTML = `
-          <div class="time">${time}<span class="transport-type"> ${e.transportType || ''}</span></div>
-          <div class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</div>
-          <div class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</div>
-          ${e.notes ? `<div class="location"><strong>Notes:</strong> ${e.notes}</div>` : ''}
+          <span class="time">${time}</span>
+          <span class="transport-type">${e.transportType || ''}</span>
+          <span class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</span>
+          <span class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</span>
+          ${e.notes ? `<span class="note"><strong>Notes:</strong> ${e.notes}</span>` : ''}
         `;
         eventList.appendChild(div);
       });
@@ -211,4 +216,9 @@
       query.send(drawTable);
     }
     google.charts.setOnLoadCallback(() => {
-      fetchAndDra
+      fetchAndDraw();
+      setInterval(fetchAndDraw, 60000);
+    });
+  </script>
+</body>
+</html>
