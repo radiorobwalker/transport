@@ -33,7 +33,7 @@
 
     .event {
       font-size: 1.1em;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       white-space: nowrap;
     }
 
@@ -48,9 +48,21 @@
       margin-left: 6px;
     }
 
-    .location,
-    .note {
+    .location {
       margin-left: 20px;
+    }
+
+    .note-line {
+      display: block;
+      margin-top: 2px;
+      margin-left: 40px; /* 5 spaces equivalent */
+      white-space: normal;
+    }
+
+    .date {
+      font-size: 1.3em;
+      margin-top: 20px;
+      text-align: center;
     }
 
     .ticker {
@@ -82,12 +94,6 @@
       color: yellow;
       font-weight: bold;
     }
-
-    .date {
-      font-size: 1.3em;
-      margin-top: 20px;
-      text-align: center;
-    }
   </style>
   <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
@@ -99,7 +105,6 @@
   <div class="ticker"><div id="rssTicker" class="ticker-text">Loading call data...</div></div>
 
   <script>
-    // Clock and Title
     function updateClock() {
       const now = new Date();
       const hours = String(now.getHours()).padStart(2, '0');
@@ -112,12 +117,10 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Google Sheets access
     const sheetID = '1V1ZVnX4G1YQeU7Dit4gkONEI8VuRanVQNjWKe2qqnnI';
     const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${encodeURIComponent('SELECT *')}`;
 
     google.charts.load('current', { packages: ['table'] });
-
     google.charts.setOnLoadCallback(() => {
       fetchAndDraw();
       setInterval(fetchAndDraw, 60000);
@@ -200,7 +203,7 @@
             <span class="transport-type">${e.transportType || ''}</span>
             <span class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</span>
             <span class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</span>
-            ${e.notes ? `<span class="note"><strong>Notes:</strong> ${e.notes}</span>` : ''}
+            ${e.notes ? `<span class="note-line"><strong>Notes:</strong> ${e.notes}</span>` : ''}
           `;
           eventList.appendChild(div);
         });
