@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</title>
+  <title>Warwick EMS Upcoming Transport Schedule</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -24,12 +24,11 @@
       right: 30px;
       font-size: 1.2em;
       font-weight: bold;
-      color: white;
     }
 
     .grid {
       display: block;
-      margin-top: 20px;
+      margin-top: 30px;
     }
 
     .event {
@@ -52,14 +51,6 @@
     .location,
     .note {
       margin-left: 20px;
-    }
-
-    .date {
-      font-size: 1.3em;
-      margin: 30px 0 10px;
-      font-weight: bold;
-      color: white;
-      text-align: center;
     }
 
     .ticker {
@@ -91,17 +82,24 @@
       color: yellow;
       font-weight: bold;
     }
+
+    .date {
+      font-size: 1.3em;
+      margin-top: 20px;
+      text-align: center;
+    }
   </style>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
   <div class="clock" id="clock"></div>
   <h1 id="pageTitle"></h1>
-  <div class="date" id="noData"></div>
-  <div id="eventList" class="grid">Loading...</div>
+  <div class="date" id="noData">Loading...</div>
+  <div id="eventList" class="grid"></div>
   <div class="ticker"><div id="rssTicker" class="ticker-text">Loading call data...</div></div>
 
   <script>
+    // Clock and Title
     function updateClock() {
       const now = new Date();
       const hours = String(now.getHours()).padStart(2, '0');
@@ -114,9 +112,16 @@
     setInterval(updateClock, 1000);
     updateClock();
 
+    // Google Sheets access
     const sheetID = '1V1ZVnX4G1YQeU7Dit4gkONEI8VuRanVQNjWKe2qqnnI';
-    const query = encodeURIComponent('SELECT *');
-    const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${query}`;
+    const url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?sheet=Transports&tq=${encodeURIComponent('SELECT *')}`;
+
+    google.charts.load('current', { packages: ['table'] });
+
+    google.charts.setOnLoadCallback(() => {
+      fetchAndDraw();
+      setInterval(fetchAndDraw, 60000);
+    });
 
     function parseDateTime(dateTimeString) {
       if (!dateTimeString || typeof dateTimeString !== 'string') return null;
@@ -140,55 +145,65 @@
       return date && date.toDateString() === now.toDateString();
     }
 
-    function drawTable(response) {
-      const data = response.getDataTable();
-      const eventList = document.getElementById('eventList');
-      const noData = document.getElementById('noData');
-      eventList.innerHTML = '';
-      noData.innerHTML = '';
+    function fetchAndDraw() {
+      const query = new google.visualization.Query(url);
+      query.send(response => {
+        const eventList = document.getElementById('eventList');
+        const noData = document.getElementById('noData');
+        eventList.innerHTML = '';
+        noData.textContent = '';
 
-      const events = [];
-      for (let i = 0; i < data.getNumberOfRows(); i++) {
-        const transportType = data.getFormattedValue(i, 0);
-        const datetime = data.getFormattedValue(i, 2);
-        const pickup = data.getFormattedValue(i, 4);
-        const pickupOther = data.getFormattedValue(i, 5);
-        const pickupRoom = data.getFormattedValue(i, 6);
-        const dropoff = data.getFormattedValue(i, 7);
-        const dropoffOther = data.getFormattedValue(i, 8);
-        const dropoffRoom = data.getFormattedValue(i, 9);
-        const notes = data.getFormattedValue(i, 13);
+        if (response.isError()) {
+          noData.textContent = 'Error loading data.';
+          console.error('Google Sheets error:', response.getMessage(), response.getDetailedMessage());
+          return;
+        }
 
-        const parsedDate = parseDateTime(datetime);
-        if (!parsedDate || !isToday(datetime)) continue;
+        const data = response.getDataTable();
+        const events = [];
 
-        events.push({ parsedDate, transportType, pickup, pickupOther, pickupRoom, dropoff, dropoffOther, dropoffRoom, notes });
-      }
+        for (let i = 0; i < data.getNumberOfRows(); i++) {
+          const transportType = data.getFormattedValue(i, 0);
+          const datetime = data.getFormattedValue(i, 2);
+          const pickup = data.getFormattedValue(i, 4);
+          const pickupOther = data.getFormattedValue(i, 5);
+          const pickupRoom = data.getFormattedValue(i, 6);
+          const dropoff = data.getFormattedValue(i, 7);
+          const dropoffOther = data.getFormattedValue(i, 8);
+          const dropoffRoom = data.getFormattedValue(i, 9);
+          const notes = data.getFormattedValue(i, 13);
 
-      if (events.length === 0) {
-        noData.textContent = 'There are no transports scheduled at this time.';
-        return;
-      }
+          const parsedDate = parseDateTime(datetime);
+          if (!parsedDate || !isToday(datetime)) continue;
 
-      events.sort((a, b) => a.parsedDate - b.parsedDate);
+          events.push({ parsedDate, transportType, pickup, pickupOther, pickupRoom, dropoff, dropoffOther, dropoffRoom, notes });
+        }
 
-      events.slice(0, 10).forEach(e => {
-        const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
-        if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
-        let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
-        if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
+        if (events.length === 0) {
+          noData.textContent = 'There are no transports scheduled at this time.';
+          return;
+        }
 
-        const div = document.createElement('div');
-        div.className = 'event';
-        div.innerHTML = `
-          <span class="time">${time}</span>
-          <span class="transport-type">${e.transportType || ''}</span>
-          <span class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</span>
-          <span class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</span>
-          ${e.notes ? `<span class="note"><strong>Notes:</strong> ${e.notes}</span>` : ''}
-        `;
-        eventList.appendChild(div);
+        events.sort((a, b) => a.parsedDate - b.parsedDate);
+
+        events.slice(0, 15).forEach(e => {
+          const time = e.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let pickupDisplay = e.pickup === 'OTHER (not listed)' && e.pickupOther ? `${e.pickup}, ${e.pickupOther}` : e.pickup;
+          if (e.pickupRoom) pickupDisplay += `, ${e.pickupRoom}`;
+          let dropoffDisplay = e.dropoff === 'OTHER (not listed)' && e.dropoffOther ? `${e.dropoff}, ${e.dropoffOther}` : e.dropoff;
+          if (e.dropoffRoom) dropoffDisplay += `, ${e.dropoffRoom}`;
+
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.innerHTML = `
+            <span class="time">${time}</span>
+            <span class="transport-type">${e.transportType || ''}</span>
+            <span class="location"><strong>Pick-up:</strong> ${pickupDisplay || 'N/A'}</span>
+            <span class="location"><strong>Drop-off:</strong> ${dropoffDisplay || 'N/A'}</span>
+            ${e.notes ? `<span class="note"><strong>Notes:</strong> ${e.notes}</span>` : ''}
+          `;
+          eventList.appendChild(div);
+        });
       });
     }
 
@@ -207,18 +222,8 @@
       }
     }
 
-    setInterval(fetchRSS, 60000);
     fetchRSS();
-
-    google.charts.load('current', { packages: ['table'] });
-    function fetchAndDraw() {
-      const query = new google.visualization.Query(url);
-      query.send(drawTable);
-    }
-    google.charts.setOnLoadCallback(() => {
-      fetchAndDraw();
-      setInterval(fetchAndDraw, 60000);
-    });
+    setInterval(fetchRSS, 60000);
   </script>
 </body>
 </html>
