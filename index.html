@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Warwick EMS Upcoming Transport Schedule (Next 3 Days)</title>
   <style>
     body {
@@ -11,6 +11,7 @@
       background-color: #000;
       color: white;
       position: relative;
+      overflow-x: hidden;
     }
     h1 {
       text-align: center;
@@ -27,20 +28,20 @@
     }
     .grid {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      max-width: 1600px;
-      margin: auto;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 40px;
+      padding: 20px 0;
     }
     .event {
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      width: 45%;
-      font-size: 1.2em;
-      box-shadow: 0 0 10px rgba(255,255,255,0.1);
-      color: black;
+      display: inline-flex;
+      flex-direction: column;
+      font-size: 1.1em;
+      white-space: nowrap;
+      color: white;
+    }
+    .event div {
+      margin-bottom: 4px;
     }
     .date {
       font-size: 1.3em;
@@ -58,7 +59,7 @@
       margin-left: 10px;
     }
     .location {
-      margin: 8px 0;
+      display: inline;
     }
     .ticker {
       position: fixed;
@@ -200,6 +201,7 @@
         document.getElementById('rssTicker').textContent = 'Unable to load call data.';
       }
     }
+
     setInterval(fetchRSS, 60000);
     fetchRSS();
 
@@ -209,9 +211,4 @@
       query.send(drawTable);
     }
     google.charts.setOnLoadCallback(() => {
-      fetchAndDraw();
-      setInterval(fetchAndDraw, 60000);
-    });
-  </script>
-</body>
-</html>
+      fetchAndDra
