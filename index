@@ -20,7 +20,7 @@
   </style>
 </head>
 <body>
-  <h1>Today's Transport Schedule</h1>
+  <h1>Transport Schedule</h1>
   <div id="eventList">Loading...</div>
 
   <script>
