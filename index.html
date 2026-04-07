@@ -1,109 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Warwick EMS – Today’s Transports</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Today's Transports</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 10px;
-      background-color: #000;
-      color: white;
-      margin: 0;
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+    h1 { text-align: center; }
+    .event {
+      background: #fff;
+      margin: 10px auto;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 600px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
-
-    h1 {
-      text-align: center;
-      font-size: 1.8em;
-      margin-top: 40px;
-    }
-
-    .clock {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      font-size: 1.2em;
-      font-weight: bold;
-    }
-
-    .calendar-container {
-      margin: 40px auto;
-      max-width: 95%;
-    }
-
-    .ticker {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background: #111;
-      color: #fff;
-      font-size: 1.3em;
-      padding: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-
-    .ticker-text {
-      display: inline-block;
-      padding-left: 100%;
-      animation: scroll-left 120s linear infinite;
-    }
-
-    @keyframes scroll-left {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-
-    .rss-title {
-      color: yellow;
-      font-weight: bold;
-    }
+    .time { font-weight: bold; }
+    .location { margin: 5px 0; }
   </style>
 </head>
 <body>
-  <div class="clock" id="clock"></div>
-  <h1>Warwick EMS – Transport Schedule</h1>
-
-  <div class="calendar-container">
-    <iframe 
-      src="https://calendar.google.com/calendar/embed?src=73465bcfa1c0ca6d147ebf3af2e7dae17585cf74ac93d3f0811deb0a97a1c730%40group.calendar.google.com&ctz=America%2FNew_York&mode=AGENDA" 
-      style="border: 0" width="100%" height="600" frameborder="0" scrolling="no">
-    </iframe>
-  </div>
-
-  <div class="ticker"><div id="rssTicker" class="ticker-text">Loading call data...</div></div>
+  <h1>Transport Schedule</h1>
+  <div id="eventList">Loading...</div>
 
   <script>
-    function updateClock() {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSkz9_LN1fVtTFY4WsdqrgKdnUzslJEFUNrkSOgj5DFkgVGTmEmqj3QzqLYxie26XAtWBLtG7K1NEBE/pub?output=csv';
 
-    async function fetchRSS() {
-      try {
-        const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://warwick911.blogspot.com/feeds/posts/default');
-        const data = await response.json();
-        const items = data.items.slice(0, 5).map(item => {
-          const title = `<span class='rss-title'>${item.title.replace(/~/g, ' ')}</span>`;
-          const desc = item.description.replace(/~/g, ' ');
-          return `${title}: ${desc}`;
-        }).join('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
-        document.getElementById('rssTicker').innerHTML = items;
-      } catch (e) {
-        document.getElementById('rssTicker').textContent = 'Unable to load call data.';
-      }
+    function parseCSV(text) {
+      const rows = text.trim().split('\n').map(row => row.split(','));
+      const headers = rows[0];
+      return rows.slice(1).map(row => {
+        const entry = {};
+        headers.forEach((h, i) => entry[h] = row[i]);
+        return entry;
+      });
     }
 
-    fetchRSS();
-    setInterval(fetchRSS, 60000);
+    function isToday(dateString) {
+      const today = new Date();
+      const date = new Date(dateString);
+      return date.getFullYear() === today.getFullYear() &&
+             date.getMonth() === today.getMonth() &&
+             date.getDate() === today.getDate();
+    }
+
+    fetch(csvUrl)
+      .then(response => response.text())
+      .then(data => {
+        const records = parseCSV(data);
+        const eventList = document.getElementById('eventList');
+        eventList.innerHTML = '';
+
+        const todaysEvents = records.filter(e => isToday(e['Date and Time of PICK UP']));
+
+        if (todaysEvents.length === 0) {
+          eventList.textContent = 'No transports scheduled for today.';
+          return;
+        }
+
+        todaysEvents.forEach(e => {
+          const time = new Date(e['Date and Time of PICK UP']).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.innerHTML = `
+            <div class="time">${time}</div>
+            <div class="location"><strong>Pick-up:</strong> ${e['Pick up location'] || 'N/A'}</div>
+            <div class="location"><strong>Drop-off:</strong> ${e['Drop off location'] || 'N/A'}</div>
+            ${e['Other notes'] ? `<div class="location"><strong>Notes:</strong> ${e['Other notes']}</div>` : ''}
+          `;
+          eventList.appendChild(div);
+        });
+      })
+      .catch(error => {
+        console.error('Error loading CSV:', error);
+        document.getElementById('eventList').textContent = 'Failed to load data.';
+      });
   </script>
 </body>
 </html>
